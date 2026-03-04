@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="icon" type="image/webp" href="cropped-xperts5-fav-icon-150x150.webp"/>
+  <title>Xperts5 — CSR Attendance — xperts5-attendance-csr</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:#e8ecf8;--surface:#ffffff;--surface2:#f0f3fc;--surface3:#e4e9f7;
+      --border:#c8d0e8;--header-bg:#0f6b4f;--header2:#0a5240;--accent:#0f6b4f;
+      --present:#16a34a;--absent:#dc2626;--leave:#d97706;--holiday:#7c3aed;
+      --off:#475569;--late:#ea580c;
+      --text:#1a1f3a;--text2:#3d4470;--muted:#6b75a8;--muted2:#a0aacf;--row-alt:#f7f9ff;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;}
+
+    /* ── LIVE STATUS PILL ── */
+    #syncPill{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,0.13);border:1.5px solid rgba(255,255,255,0.22);border-radius:999px;padding:5px 13px 5px 10px;font-family:'DM Mono',monospace;font-size:12px;color:rgba(255,255,255,0.9);user-select:none;transition:background .3s,border-color .3s;white-space:nowrap;}
+    #syncPill .pill-dot{width:9px;height:9px;border-radius:50%;background:#a0aacf;flex-shrink:0;transition:background .3s,box-shadow .3s;}
+    #syncPill.live .pill-dot{background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,0.25);animation:pillPulse 2s ease-in-out infinite;}
+    #syncPill.syncing .pill-dot{background:#facc15;box-shadow:0 0 0 3px rgba(250,204,21,0.25);animation:pillPulse 0.7s ease-in-out infinite;}
+    #syncPill.error .pill-dot{background:#f87171;box-shadow:0 0 0 3px rgba(248,113,113,0.25);animation:none;}
+    @keyframes pillPulse{0%,100%{box-shadow:0 0 0 3px rgba(74,222,128,0.25);}50%{box-shadow:0 0 0 6px rgba(74,222,128,0.08);}}
+
+    /* ── TOP BAR ── */
+    .top-bar{
+      background:var(--header-bg);
+      padding:18px 28px 20px;
+      display:grid;
+      grid-template-columns:1fr auto 1fr;
+      align-items:center;
+      gap:16px;
+    }
+
+    /* Left: brand */
+    .brand{display:flex;align-items:center;gap:12px;}
+    .brand h1{font-family:'Libre Baskerville',serif;font-size:26px;font-weight:700;color:#fff;}
+    .brand p{font-size:11px;color:rgba(255,255,255,.65);margin-top:2px;letter-spacing:1.5px;text-transform:uppercase;}
+
+    /* Center: Supervised by */
+    .supervisor-wrap{
+      display:flex;flex-direction:column;align-items:center;gap:4px;
+    }
+    .supervisor-wrap label{
+      font-size:9px;text-transform:uppercase;letter-spacing:1.5px;
+      color:rgba(255,255,255,.65);font-family:'DM Mono',monospace;
+    }
+    .supervisor-wrap select{
+      background:rgba(255,255,255,.15);
+      border:1.5px solid rgba(255,255,255,.35);
+      color:#fff;
+      padding:7px 28px 7px 12px;
+      border-radius:8px;
+      font-family:'DM Mono',monospace;
+      font-size:13px;
+      font-weight:600;
+      outline:none;
+      cursor:pointer;
+      -webkit-appearance:none;appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,.7)'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 10px center;
+      text-align:center;
+      min-width:180px;
+    }
+    .supervisor-wrap select:hover{border-color:rgba(255,255,255,.7);background-color:rgba(255,255,255,.22);}
+    .supervisor-wrap select option{background:#0f6b4f;color:#fff;}
+
+    /* Right: controls */
+    .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;justify-content:flex-end;}
+    .ctrl-group{display:flex;flex-direction:column;gap:4px;}
+    .ctrl-group label{font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:rgba(255,255,255,.65);font-family:'DM Mono',monospace;}
+    .ctrl-group select,.ctrl-group input[type="time"]{
+      background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.35);
+      color:#fff;padding:7px 10px;border-radius:8px;font-family:'DM Mono',monospace;
+      font-size:13px;outline:none;transition:border-color .2s,background .2s;cursor:pointer;
+      -webkit-appearance:none;appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,.7)'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;color-scheme:dark;
+    }
+    .ctrl-group input[type="time"]{background-image:none;padding-right:10px;width:96px;}
+    .ctrl-group select:hover,.ctrl-group input:hover{border-color:rgba(255,255,255,.7);background-color:rgba(255,255,255,.22);}
+    .ctrl-group select:focus,.ctrl-group input:focus{border-color:#fff;}
+    .ctrl-group select option{background:#0f6b4f;color:#fff;}
+
+    /* ── STATS ── */
+    .stats-wrap{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;padding:20px 28px 28px;background:var(--header-bg);}
+    .stat-card{background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 22px;text-align:center;min-width:100px;transition:transform 0.28s cubic-bezier(.22,.68,0,1.4),box-shadow 0.28s ease,border-color 0.28s ease;cursor:default;}
+    .stat-card:hover{transform:translateY(-6px);box-shadow:0 10px 28px rgba(15,107,79,.15);border-color:#6ee7b7;}
+    .stat-card .slabel{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-family:'DM Mono',monospace;}
+    .stat-card .svalue{font-family:'Libre Baskerville',serif;font-size:20px;font-weight:700;margin-top:2px;color:var(--text);}
+
+    /* ── LEGEND + TOOLBAR ── */
+    .below-stats{padding:16px 28px 14px;display:flex;align-items:center;flex-wrap:wrap;gap:12px;}
+    .legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:8px 14px;flex:1;}
+    .leg-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;}
+    .leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;transition:box-shadow 0.35s ease,transform 0.35s ease;}
+    .leg-dot.glowing{animation:dotGlowOn 1.4s cubic-bezier(0.4,0,0.2,1) forwards;}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;}
+    .btn{padding:8px 16px;border-radius:8px;border:none;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap;}
+    .btn:hover{opacity:.85;transform:translateY(-1px);}
+    .btn:active{transform:translateY(0);}
+    .btn-primary{background:var(--accent);color:#fff;}
+    .btn-ghost{background:var(--surface);color:var(--text);border:1.5px solid var(--border);}
+
+    /* ── TABLE ── */
+    .table-outer{padding:0 28px 40px;overflow-x:hidden;}
+    .table-wrap{border-radius:12px;border:1.5px solid var(--border);background:var(--surface);overflow:hidden;width:100%;}
+    table{border-collapse:collapse;width:100%;table-layout:fixed;}
+    col.col-sno {width:34px;}
+    col.col-name{width:140px;}   /* wider since no dept column */
+    col.col-day {width:38px;}
+    col.col-sum {width:46px;}
+    col.col-pct {width:46px;}
+
+    thead tr.row-ctrl th{background:var(--header-bg);text-align:center;border-right:1px solid rgba(255,255,255,.15);padding:0;}
+    thead tr.row-daynum th{background:var(--header2);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;color:#fff;text-align:center;padding:6px 2px 3px;border-right:1px solid rgba(255,255,255,.12);border-bottom:1px solid rgba(255,255,255,.12);}
+    thead tr.row-dayname th{background:var(--header2);font-family:'DM Mono',monospace;font-size:9px;font-weight:500;color:rgba(255,255,255,.65);text-align:center;padding:2px 2px 6px;border-right:1px solid rgba(255,255,255,.1);border-bottom:2px solid rgba(255,255,255,.2);letter-spacing:.3px;}
+    .th-hol-num {background:#4c1d95 !important;color:#ddd6fe !important;}
+    .th-hol-name{background:#4c1d95 !important;color:#ddd6fe !important;}
+    .th-fixed{background:var(--header-bg) !important;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:rgba(255,255,255,.9);text-align:center;padding:6px 4px;border-right:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,255,.1);line-height:1.3;white-space:normal;}
+    .th-present{color:#86efac !important;}.th-absent{color:#fca5a5 !important;}
+    .th-leave{color:#fde68a !important;}.th-late{color:#fdba74 !important;}.th-pct{color:#a5b4fc !important;}
+    .hol-ctrl-th{text-align:center;vertical-align:middle;padding:4px 2px;}
+
+    tbody tr{border-bottom:1px solid var(--border);transition:background .12s;}
+    tbody tr:nth-child(even){background:var(--row-alt);}
+    tbody tr:hover{background:#ecfdf5;}
+    tbody tr:last-child{border-bottom:none;}
+    td{border-right:1px solid var(--border);padding:0;vertical-align:middle;overflow:hidden;}
+    td.td-sno{text-align:center;font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;padding:0 2px;}
+    td.td-name{padding:0 6px;}
+    .emp-name-inp{background:transparent;border:none;width:100%;outline:none;padding:3px 0;font-size:12px;font-weight:600;color:var(--text);font-family:'Inter',sans-serif;}
+
+    /* ── DAY CELL ── */
+    .day-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:54px;padding:3px 2px;gap:3px;}
+    .day-cell.is-holiday{background:#f3e8ff;}
+    .hol-label{font-size:9px;color:var(--holiday);font-family:'DM Mono',monospace;font-weight:700;letter-spacing:.3px;}
+
+    /* Status select */
+    .status-sel{width:32px;background:#f0f3fc;border:1.5px solid var(--border);color:var(--text);font-size:10px;font-family:'DM Mono',monospace;text-align:center;outline:none;border-radius:4px;cursor:pointer;padding:2px 1px;font-weight:700;transition:border-color .15s;-webkit-appearance:none;appearance:none;}
+    .status-sel:hover{border-color:var(--accent);}
+    .status-sel.s-P  {color:var(--present); border-color:#bbf7d0;background:#f0fdf4;}
+    .status-sel.s-A  {color:var(--absent);  border-color:#fecaca;background:#fff1f1;}
+    .status-sel.s-L  {color:var(--leave);   border-color:#fde68a;background:#fffbeb;}
+    .status-sel.s-H  {color:var(--holiday); border-color:#ddd6fe;background:#faf5ff;}
+    .status-sel.s-OF {color:var(--off);     border-color:#cbd5e1;background:#f8fafc;}
+    .status-sel.s-   {color:var(--muted2);  border-color:var(--border);}
+
+    /* Time button */
+    .time-btn{width:32px;background:#f0f3fc;border:1.5px solid var(--border);border-radius:4px;color:var(--muted2);font-size:9px;font-family:'DM Mono',monospace;text-align:center;cursor:pointer;padding:2px 1px;transition:border-color .15s,background .15s,box-shadow .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .time-btn:hover{border-color:var(--accent);background:#e8ecff;}
+    .time-btn.has-time{background:#eaf4ff;border:1.5px solid #93c5fd;color:#1d4ed8;font-weight:600;box-shadow:0 1px 4px rgba(59,130,246,.18);}
+    .time-btn.is-late {background:#fff4ed;border:1.5px solid #fb923c;color:var(--late);font-weight:700;box-shadow:0 1px 4px rgba(234,88,12,.18);}
+
+    td.td-sum{text-align:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;padding:0 4px;}
+    td.td-pct{text-align:center;font-family:'Libre Baskerville',serif;font-size:12px;font-weight:700;padding:0 4px;}
+
+    .del-btn{background:none;border:none;color:var(--muted2);font-size:10px;cursor:pointer;font-family:'DM Mono',monospace;width:100%;padding:3px;border-radius:4px;transition:color .15s,background .15s;}
+    .del-btn:hover{color:var(--absent);background:#fee2e2;}
+
+    .hol-col-btn{display:flex;align-items:center;justify-content:center;width:30px;height:22px;margin:0 auto;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);border-radius:5px;color:rgba(255,255,255,.9);font-size:10px;font-family:'Inter',sans-serif;font-weight:700;text-align:center;cursor:pointer;padding:0;transition:background .15s,border-color .15s;letter-spacing:.3px;}
+    .hol-col-btn:hover{background:rgba(255,255,255,.32);border-color:rgba(255,255,255,.7);}
+    .hol-col-btn.active{background:#c084fc;color:#fff;border-color:#a855f7;box-shadow:0 0 0 2px rgba(192,132,252,.4);}
+
+    /* ── CLOCK POPUP ── */
+    #clockOverlay{display:none;position:fixed;inset:0;z-index:9998;}
+    #clockPopup{display:none;position:fixed;z-index:9999;background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:16px 18px 14px;box-shadow:0 12px 40px rgba(30,40,100,.18);width:188px;user-select:none;}
+    .clock-title{font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:center;margin-bottom:10px;}
+    .clock-display{display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:12px;}
+    .clock-seg{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:6px 8px;font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--text);width:54px;text-align:center;outline:none;transition:border-color .15s;}
+    .clock-seg:focus{border-color:var(--accent);background:#ecfdf5;}
+    .clock-colon{font-size:22px;font-weight:700;color:var(--muted);margin-bottom:3px;}
+    .clock-late-warn{text-align:center;font-size:10px;font-family:'DM Mono',monospace;color:var(--late);margin-bottom:8px;min-height:14px;}
+    .clock-arrows{display:flex;justify-content:center;gap:4px;margin-bottom:10px;}
+    .clock-arr-group{display:flex;flex-direction:column;align-items:center;gap:3px;width:54px;}
+    .arr-btn{width:40px;height:22px;background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;font-size:13px;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .12s,border-color .12s;}
+    .arr-btn:hover{background:#ecfdf5;border-color:var(--accent);color:var(--accent);}
+    .arr-label{font-size:9px;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:.5px;}
+    .clock-actions{display:flex;gap:8px;}
+    .clock-actions button{flex:1;padding:7px;border-radius:7px;border:none;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+    .clock-actions button:hover{opacity:.85;}
+    .clock-ok{background:var(--accent);color:#fff;}
+    .clock-clear{background:var(--surface2);color:var(--absent);border:1.5px solid #fecaca !important;}
+
+    /* ── ANIMATIONS ── */
+    @keyframes modalZoomIn {0%{opacity:0;transform:scale(0.82) translateY(12px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+    @keyframes modalZoomOut{0%{opacity:1;transform:scale(1) translateY(0)}100%{opacity:0;transform:scale(0.82) translateY(12px)}}
+    @keyframes dotGlowOn   {0%{box-shadow:0 0 0px 0px transparent;transform:scale(1)}30%{box-shadow:0 0 3px 1px var(--gc);transform:scale(1.08)}60%{box-shadow:0 0 3px 1px var(--gc);transform:scale(1.08)}100%{box-shadow:0 0 0px 0px transparent;transform:scale(1)}}
+    @keyframes confettiPop {0%{opacity:1;transform:translate(0,0) scale(1) rotate(0deg)}100%{opacity:0;transform:translate(var(--cx),var(--cy)) scale(0) rotate(var(--cr))}}
+    @keyframes pctPop      {0%{transform:scale(1)}40%{transform:scale(1.35)}70%{transform:scale(0.92)}100%{transform:scale(1)}}
+    @keyframes rollIn      {0%{transform:translateY(-120%) rotateX(55deg);opacity:0}55%{transform:translateY(8%) rotateX(-6deg);opacity:1}80%{transform:translateY(-3%) rotateX(3deg);opacity:1}100%{transform:translateY(0%) rotateX(0deg);opacity:1}}
+
+    #empModalInner{animation:modalZoomIn 0.22s cubic-bezier(.22,.68,0,1.2) forwards;}
+    #empModalInner.closing{animation:modalZoomOut 0.18s ease-in forwards;}
+    .confetti-dot{position:fixed;width:7px;height:7px;border-radius:2px;pointer-events:none;z-index:99999;animation:confettiPop 0.9s ease-out forwards;}
+    .pct-pop{animation:pctPop 0.45s cubic-bezier(.22,.68,0,1.4);}
+    .svalue{perspective:300px;overflow:hidden;}
+    .svalue .flip-char{display:inline-block;transform-origin:center bottom;animation:rollIn 0.42s cubic-bezier(0.22,0.68,0,1.15) both;}
+
+    @media print{.toolbar,.controls,.supervisor-wrap,#clockOverlay,#clockPopup{display:none !important;}body{background:#fff;}}
+  </style>
+</head>
+<body>
+
+<!-- ═══ TOP BAR ═══════════════════════════════════════════════════════════ -->
+<div class="top-bar">
+
+  <!-- LEFT: Brand -->
+  <div class="brand">
+    <img src="xpert5-logo-2.png" alt="Xperts5" style="height:48px;object-fit:contain;filter:drop-shadow(0px 4px 6px rgba(0,0,0,0.35));" onerror="this.style.display='none'"/>
+    <div>
+      <h1>CSR Attendance</h1>
+      <p>Monthly Employee Attendance Sheet</p>
+    </div>
+    <div id="syncPill">
+      <span class="pill-dot"></span>
+      <span class="pill-label">Connecting…</span>
+    </div>
+  </div>
+
+  <!-- CENTER: Supervised by -->
+  <div class="supervisor-wrap">
+    <label>Supervised by</label>
+    <select id="selSupervisor">
+      <option value="Muhammad Ahsan">Muhammad Ahsan</option>
+      <option value="Muhammad Bilal">Muhammad Bilal</option>
+    </select>
+  </div>
+
+  <!-- RIGHT: Controls -->
+  <div class="controls">
+    <div class="ctrl-group">
+      <label>Month</label>
+      <select id="selMonth">
+        <option value="0">January</option><option value="1">February</option>
+        <option value="2">March</option><option value="3">April</option>
+        <option value="4">May</option><option value="5">June</option>
+        <option value="6">July</option><option value="7">August</option>
+        <option value="8">September</option><option value="9">October</option>
+        <option value="10">November</option><option value="11">December</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>Year</label>
+      <select id="selYear" style="width:84px"></select>
+    </div>
+    <div class="ctrl-group">
+      <label>Std. Check-in</label>
+      <input type="time" id="stdCheckin" value="08:05"/>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ STATS ══════════════════════════════════════════════════════════════ -->
+<div class="stats-wrap" id="statsBar"></div>
+
+<!-- ═══ LEGEND + TOOLBAR ══════════════════════════════════════════════════ -->
+<div class="below-stats">
+  <div class="legend">
+    <div class="leg-item"><div class="leg-dot" style="background:#16a34a"></div>P = Present</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#dc2626"></div>A = Absent</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#d97706"></div>L = Leave</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#475569"></div>OF = Off (no effect on attendance)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#7c3aed"></div>H = Holiday (col)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#ea580c"></div>Orange = Late</div>
+  </div>
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="addEmployee()">+ Add Employee</button>
+    <button class="btn btn-ghost"   onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="btn btn-ghost"   onclick="window.print()">🖨 Print</button>
+  </div>
+</div>
+
+<!-- ═══ TABLE ══════════════════════════════════════════════════════════════ -->
+<div class="table-outer">
+  <div class="table-wrap">
+    <table id="attTable">
+      <colgroup id="colgroup"></colgroup>
+      <thead>
+        <tr class="row-ctrl"    id="trCtrl"></tr>
+        <tr class="row-daynum"  id="trDayNums"></tr>
+        <tr class="row-dayname" id="trDayNames"></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ CLOCK POPUP ════════════════════════════════════════════════════════ -->
+<div id="clockOverlay" onclick="closeClock()"></div>
+<div id="clockPopup">
+  <div class="clock-title">Check-in Time</div>
+  <div class="clock-arrows">
+    <div class="clock-arr-group">
+      <button class="arr-btn" onclick="adjustClock('h',1)">▲</button>
+      <span class="arr-label">HR</span>
+      <button class="arr-btn" onclick="adjustClock('h',-1)">▼</button>
+    </div>
+    <div style="width:12px"></div>
+    <div class="clock-arr-group">
+      <button class="arr-btn" onclick="adjustClock('m',1)">▲</button>
+      <span class="arr-label">MIN</span>
+      <button class="arr-btn" onclick="adjustClock('m',-1)">▼</button>
+    </div>
+  </div>
+  <div class="clock-display">
+    <input class="clock-seg" id="clockH" maxlength="2" value="08" oninput="onClockInput('h')" onkeydown="onClockKey(event,'h')"/>
+    <span class="clock-colon">:</span>
+    <input class="clock-seg" id="clockM" maxlength="2" value="05" oninput="onClockInput('m')" onkeydown="onClockKey(event,'m')"/>
+  </div>
+  <div class="clock-late-warn" id="clockWarn"></div>
+  <div class="clock-actions">
+    <button class="clock-clear" onclick="clearClockTime()">Clear</button>
+    <button class="clock-ok"    onclick="confirmClock()">Set Time</button>
+  </div>
+</div>
+
+<!-- ═══ ADD EMPLOYEE MODAL ════════════════════════════════════════════════ -->
+<div id="empModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(10,50,30,.45);backdrop-filter:blur(3px);align-items:center;justify-content:center;">
+  <div id="empModalInner" style="background:#fff;border-radius:16px;padding:32px 28px 24px;width:320px;box-shadow:0 20px 60px rgba(10,82,64,.22);border:1.5px solid #c8d0e8;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h2 style="font-family:'Libre Baskerville',serif;font-size:18px;font-weight:800;color:#1a1f3a;">Add Employee</h2>
+      <button onclick="closeEmpModal()" style="background:none;border:none;font-size:20px;color:#6b75a8;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <label style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6b75a8;font-family:'DM Mono',monospace;display:block;margin-bottom:5px;">Employee Name *</label>
+        <input id="empModalName" type="text" placeholder="e.g. Ahmed Khan"
+          onkeydown="if(event.key==='Enter')saveEmpModal();if(event.key==='Escape')closeEmpModal();"
+          style="width:100%;padding:9px 12px;border:1.5px solid #c8d0e8;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;color:#1a1f3a;outline:none;transition:border-color .2s;"
+          onfocus="this.style.borderColor='#0f6b4f'" onblur="this.style.borderColor='#c8d0e8'"/>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px;">
+        <button onclick="closeEmpModal()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #c8d0e8;background:#f0f3fc;color:#3d4470;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>
+        <button onclick="saveEmpModal()" style="flex:2;padding:10px;border-radius:8px;border:none;background:#0f6b4f;color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Add Employee</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MAIN SCRIPT ════════════════════════════════════════════════════════ -->
+<script>
+/* ═══════════════════════════════════════════════════
+   CONSTANTS & CONFIG
+═══════════════════════════════════════════════════ */
+const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTH_NAMES = ['January','February','March','April','May','June',
+                     'July','August','September','October','November','December'];
+
+/* CSR: Sunday is a normal working day. OFF is a manual status, not auto. */
+const STATUS_OPTS = ['', 'P', 'A', 'L', 'OF', 'H'];
+
+/* 100% attendance = 26 Present days (fixed target, not calendar-based) */
+const FULL_ATTENDANCE_DAYS = 26;
+
+function makeId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+/* ═══ STATE ═════════════════════════════════════════ */
+/* Exposed on window so the Firebase module can read/write it */
+window._state = {
+  month:      new Date().getMonth(),
+  year:       new Date().getFullYear(),
+  stdCheckin: '08:05',
+  supervisor: 'Muhammad Ahsan',
+  holidays:   {},
+  employees:  [
+    { id:'csr_emp1', name:'Muhammad Bilal', order:0, days:{} },
+    { id:'csr_emp2', name:'Muhammad Amir', order:1, days:{} },
+    { id:'csr_emp3', name:'Kinza', order:2, days:{} },
+  ]
+};
+const state = window._state;
+
+/* ═══ Helpers ═══════════════════════════════════════ */
+function daysInMonth(m,y)  { return new Date(y,m+1,0).getDate(); }
+function dow(m,y,d)        { return new Date(y,m,d).getDay(); }
+function holKey(d)          { return `${state.year}-${state.month}-${d}`; }
+function isHoliday(d)       { return !!state.holidays[holKey(d)]; }
+function toMins(t)          { if(!t||typeof t!=='string') return null; const [a,b]=t.split(':'); const h=parseInt(a),m=parseInt(b); return (isNaN(h)||isNaN(m))?null:h*60+m; }
+function isLate(t)          { const s=toMins(state.stdCheckin),e=toMins(t); return e!==null&&s!==null&&e>s; }
+function dayKey(d)          { return `${state.year}-${state.month}-${d}`; }
+function getDay(emp,d)      { return emp.days[dayKey(d)]||{status:'',time:''}; }
+function setDay(emp,d,field,val){
+  const k=dayKey(d);
+  if(!emp.days[k]) emp.days[k]={status:'',time:''};
+  emp.days[k][field]=val;
+  /* Persist to Firestore */
+  const cell=emp.days[k];
+  if(window._db) window._db.saveAttCell(emp.id, state.year, state.month, d, cell.status, cell.time);
+}
+
+/* ── Attendance stats ──
+   - OFF counts as a neutral day (does not count as absent or present)
+   - 100% = FULL_ATTENDANCE_DAYS (26) presents
+   - Pct can exceed 100% if someone comes more than 26 days          */
+function empStats(emp) {
+  const total = daysInMonth(state.month, state.year);
+  let P=0, A=0, L=0, OF=0, late=0;
+  for(let d=1; d<=total; d++) {
+    if(isHoliday(d)) continue;
+    const {status, time} = getDay(emp, d);
+    if(status==='P')  { P++;  if(isLate(time)) late++; }
+    else if(status==='A')  A++;
+    else if(status==='L')  L++;
+    else if(status==='OF') OF++;
+  }
+  /* Attendance % based on fixed 26-day target */
+  const pct = Math.round((P / FULL_ATTENDANCE_DAYS) * 100);
+  return { P, A, L, OF, late, pct };
+}
+
+/* ═══ Year dropdown ═════════════════════════════════ */
+function populateYears(){
+  const sel=document.getElementById('selYear'); sel.innerHTML='';
+  for(let y=2020;y<=2035;y++){
+    const opt=document.createElement('option'); opt.value=y; opt.textContent=y;
+    if(y===state.year) opt.selected=true; sel.appendChild(opt);
+  }
+}
+
+/* ═══ RENDER ════════════════════════════════════════ */
+function render(){
+  const {month,year}=state;
+  const days=daysInMonth(month,year);
+
+  /* Colgroup — no dept column */
+  const cg=document.getElementById('colgroup'); cg.innerHTML='';
+  ['col-sno','col-name'].forEach(c=>{const col=document.createElement('col');col.className=c;cg.appendChild(col);});
+  for(let d=1;d<=days;d++){const col=document.createElement('col');col.className='col-day';cg.appendChild(col);}
+  ['col-sum','col-sum','col-sum','col-sum','col-sum','col-pct'].forEach(c=>{const col=document.createElement('col');col.className=c;cg.appendChild(col);});
+
+  const trCtrl  = document.getElementById('trCtrl');
+  const trNums  = document.getElementById('trDayNums');
+  const trNames = document.getElementById('trDayNames');
+  trCtrl.innerHTML=''; trNums.innerHTML=''; trNames.innerHTML='';
+
+  /* Fixed headers — rowspan 3, no dept */
+  [{label:'#',cls:'th-fixed col-sno'},{label:'Employee',cls:'th-fixed col-name'}]
+  .forEach(h=>{const th=document.createElement('th');th.textContent=h.label;th.className=h.cls;th.rowSpan=3;trCtrl.appendChild(th);});
+
+  /* Day columns — NO special Sunday styling, all days are working */
+  for(let d=1;d<=days;d++){
+    const hol=isHoliday(d);
+
+    /* Holiday toggle button in ctrl row */
+    const thC=document.createElement('th');
+    thC.className='hol-ctrl-th';
+    thC.style.background=hol?'#4c1d95':'var(--header-bg)';
+    thC.style.borderRight='1px solid rgba(255,255,255,.15)';
+    const btn=document.createElement('button');
+    btn.className='hol-col-btn'+(hol?' active':'');
+    btn.textContent='H'; btn.title=hol?'Remove holiday':'Mark as Holiday';
+    btn.onclick=(e)=>{e.stopPropagation();toggleHoliday(d);};
+    thC.appendChild(btn);
+    trCtrl.appendChild(thC);
+
+    /* Day number */
+    const thN=document.createElement('th');
+    thN.textContent=d;
+    thN.className=hol?'th-hol-num':'';
+    trNums.appendChild(thN);
+
+    /* Day name */
+    const thD=document.createElement('th');
+    thD.textContent=DAY_NAMES[dow(month,year,d)];
+    thD.className=hol?'th-hol-name':'';
+    trNames.appendChild(thD);
+  }
+
+  /* Summary headers */
+  [{html:'Total<br>Present',cls:'th-fixed th-present'},
+   {html:'Total<br>Absent', cls:'th-fixed th-absent'},
+   {html:'Total<br>Leave',  cls:'th-fixed th-leave'},
+   {html:'Total<br>Off',    cls:'th-fixed',style:'color:#94a3b8 !important'},
+   {html:'Late<br>Days',    cls:'th-fixed th-late'},
+   {html:'Att<br>%',        cls:'th-fixed th-pct'}]
+  .forEach(h=>{
+    const th=document.createElement('th');
+    th.innerHTML=h.html; th.className=h.cls; th.rowSpan=3;
+    if(h.style) th.style.cssText=h.style;
+    trCtrl.appendChild(th);
+  });
+
+  /* Body */
+  const tbody=document.getElementById('tbody'); tbody.innerHTML='';
+
+  state.employees.forEach((emp,ei)=>{
+    const tr=document.createElement('tr'); tr.dataset.ei=ei;
+
+    /* S.No */
+    const tdSno=document.createElement('td'); tdSno.className='td-sno';
+    const delBtn=document.createElement('button'); delBtn.className='del-btn'; delBtn.textContent=ei+1;
+    delBtn.title='Double-click to delete';
+    delBtn.ondblclick=()=>{if(confirm(`Delete "${emp.name}"?`)){if(window._db)window._db.deleteEmployee(emp.id);state.employees.splice(ei,1);render();}};
+    tdSno.appendChild(delBtn); tr.appendChild(tdSno);
+
+    /* Name only — no dept */
+    const tdName=document.createElement('td'); tdName.className='td-name';
+    const ni=document.createElement('input'); ni.className='emp-name-inp'; ni.value=emp.name;
+    ni.onchange=e=>{emp.name=e.target.value; if(window._db) window._db.saveEmployee(emp);};
+    tdName.appendChild(ni); tr.appendChild(tdName);
+
+    /* Day cells */
+    for(let d=1;d<=days;d++){
+      const hol=isHoliday(d);
+      const td=document.createElement('td'); td.style.padding='0';
+      const cell=document.createElement('div');
+      cell.className='day-cell'+(hol?' is-holiday':'');
+
+      if(hol){
+        const lbl=document.createElement('span'); lbl.className='hol-label'; lbl.textContent='H'; cell.appendChild(lbl);
+      } else {
+        const {status,time}=getDay(emp,d);
+
+        /* Status select */
+        const sel=document.createElement('select');
+        const sCls = status==='OF' ? 's-OF' : 's-'+status;
+        sel.className='status-sel '+sCls;
+        const optMeta={
+          '':  {color:'',      bg:'#fff',    label:'—'},
+          'P': {color:'#15803d',bg:'#f0fdf4',label:'P'},
+          'A': {color:'#b91c1c',bg:'#fff1f1',label:'A'},
+          'L': {color:'#b45309',bg:'#fffbeb',label:'L'},
+          'OF':{color:'#475569',bg:'#f8fafc',label:'OF'},
+          'H': {color:'#6d28d9',bg:'#faf5ff',label:'H'},
+        };
+        STATUS_OPTS.forEach(o=>{
+          const opt=document.createElement('option');
+          opt.value=o; opt.textContent=optMeta[o]?.label||o||'—';
+          if(o===status) opt.selected=true;
+          opt.style.color=optMeta[o]?.color||'';
+          opt.style.background=optMeta[o]?.bg||'#fff';
+          opt.style.fontWeight=o?'700':'400';
+          sel.appendChild(opt);
+        });
+        sel.onchange=e=>{
+          const v=e.target.value;
+          setDay(emp,d,'status',v);
+          sel.className='status-sel '+(v==='OF'?'s-OF':'s-'+v);
+          updateRowSummary(tr,emp);
+        };
+        cell.appendChild(sel);
+
+        /* Time button */
+        const tb=document.createElement('button');
+        tb.className='time-btn'+(time?' has-time':'')+(isLate(time)?' is-late':'');
+        tb.textContent=time||'--:--'; tb.title='Click to set time';
+        tb.onclick=()=>openClock(tb,emp,d);
+        cell.appendChild(tb);
+      }
+
+      td.appendChild(cell); tr.appendChild(td);
+    }
+
+    /* Summary cols */
+    const stats=empStats(emp);
+    [
+      {k:'P',   color:'var(--present)'},
+      {k:'A',   color:'var(--absent)'},
+      {k:'L',   color:'var(--leave)'},
+      {k:'OF',  color:'var(--off)'},
+      {k:'late',color:'var(--late)'},
+    ].forEach(s=>{
+      const td=document.createElement('td'); td.className='td-sum sum-cell'; td.dataset.key=s.k;
+      td.style.color=s.color; td.textContent=stats[s.k]; tr.appendChild(td);
+    });
+
+    /* Attendance % */
+    const tdP=document.createElement('td'); tdP.className='td-pct pct-cell';
+    const pColor=stats.pct>=100?'var(--present)':stats.pct>=75?'var(--leave)':'var(--absent)';
+    tdP.style.color=pColor;
+    tdP.textContent=stats.pct+'%';
+    tr.appendChild(tdP);
+
+    tbody.appendChild(tr);
+  });
+
+  /* Empty rows */
+  const totalRows=Math.max(state.employees.length+3,10);
+  for(let i=state.employees.length;i<totalRows;i++){
+    const tr=document.createElement('tr'); tr.style.height='54px';
+    const ts=document.createElement('td'); ts.className='td-sno'; ts.style.color='var(--muted2)'; ts.textContent=i+1; tr.appendChild(ts);
+    const tn=document.createElement('td'); tn.className='td-name'; tr.appendChild(tn);
+    for(let d=1;d<=days;d++){
+      const td=document.createElement('td'); td.style.padding='0';
+      if(isHoliday(d)){const c=document.createElement('div');c.className='day-cell is-holiday';const lbl=document.createElement('span');lbl.className='hol-label';lbl.textContent='H';c.appendChild(lbl);td.appendChild(c);}
+      tr.appendChild(td);
+    }
+    for(let s=0;s<6;s++){const td=document.createElement('td');td.style.cssText='text-align:center;color:var(--muted2);font-size:11px;font-family:"DM Mono",monospace;';td.textContent='—';tr.appendChild(td);}
+    tbody.appendChild(tr);
+  }
+
+  updateStats();
+}
+
+function toggleHoliday(d){
+  const k=holKey(d); const nowHol=!state.holidays[k];
+  if(nowHol) state.holidays[k]=true; else delete state.holidays[k];
+  if(window._db) window._db.saveHoliday(state.year, state.month, d, nowHol);
+  render();
+}
+
+function updateRowSummary(tr,emp){
+  const stats=empStats(emp);
+  ['P','A','L','OF','late'].forEach(k=>{
+    const td=tr.querySelector(`.sum-cell[data-key="${k}"]`);
+    if(td) td.textContent=stats[k];
+  });
+  const pctTd=tr.querySelector('.pct-cell');
+  if(pctTd){
+    const oldPct=parseFloat(pctTd.textContent)||0;
+    pctTd.textContent=stats.pct+'%';
+    pctTd.style.color=stats.pct>=100?'var(--present)':stats.pct>=75?'var(--leave)':'var(--absent)';
+    if(stats.pct>oldPct&&stats.pct>0){
+      pctTd.classList.remove('pct-pop'); void pctTd.offsetWidth; pctTd.classList.add('pct-pop');
+      setTimeout(()=>pctTd.classList.remove('pct-pop'),500);
+      spawnConfetti(pctTd);
+    }
+  }
+  updateStats();
+}
+
+const CONFETTI_COLORS=['#0f6b4f','#16a34a','#dc2626','#d97706','#7c3aed','#ea580c','#f59e0b','#06b6d4'];
+function spawnConfetti(anchorEl){
+  const rect=anchorEl.getBoundingClientRect(); const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+  for(let i=0;i<12;i++){
+    const dot=document.createElement('div'); dot.className='confetti-dot';
+    const tx=(Math.random()*160-80)+'px',ty=(Math.random()*-120-20)+'px',rot=(Math.random()*720-360)+'deg';
+    dot.style.cssText=`left:${cx-3}px;top:${cy-3}px;background:${CONFETTI_COLORS[i%CONFETTI_COLORS.length]};--cx:${tx};--cy:${ty};--cr:${rot};animation-delay:${Math.random()*0.12}s;`;
+    document.body.appendChild(dot); setTimeout(()=>dot.remove(),900+Math.random()*200);
+  }
+}
+
+function updateStats(){
+  const total=daysInMonth(state.month,state.year);
+  let holidays=0;
+  for(let d=1;d<=total;d++){ if(isHoliday(d)) holidays++; }
+
+  /* No "Working Days" card as requested */
+  document.getElementById('statsBar').innerHTML=`
+    <div class="stat-card"><div class="slabel">Month</div><div class="svalue" style="font-size:16px">${MONTH_NAMES[state.month]} ${state.year}</div></div>
+    <div class="stat-card"><div class="slabel">Total Days</div><div class="svalue">${total}</div></div>
+    <div class="stat-card"><div class="slabel">Target Days</div><div class="svalue" style="color:var(--present)">${FULL_ATTENDANCE_DAYS}</div></div>
+    <div class="stat-card"><div class="slabel">Holidays</div><div class="svalue" style="color:var(--holiday)">${holidays}</div></div>
+    <div class="stat-card"><div class="slabel">Employees</div><div class="svalue">${state.employees.length}</div></div>
+    <div class="stat-card"><div class="slabel">Supervised by</div><div class="svalue" style="font-size:13px">${state.supervisor}</div></div>
+  `;
+  setTimeout(bindStatCardHover, 10);
+}
+
+/* ═══ CLOCK ═════════════════════════════════════════ */
+let clockTarget=null, clockH=8, clockM=5;
+function openClock(btn,emp,d){
+  const {time}=getDay(emp,d);
+  if(time){const[h,m]=time.split(':');clockH=parseInt(h);clockM=parseInt(m);}
+  else{clockH=8;clockM=5;}
+  clockTarget={btn,emp,d}; refreshClockDisplay();
+  const popup=document.getElementById('clockPopup'),overlay=document.getElementById('clockOverlay');
+  popup.style.display='block';overlay.style.display='block';
+  const rect=btn.getBoundingClientRect();
+  let top=rect.bottom+6,left=rect.left-60;
+  if(left+192>window.innerWidth)left=window.innerWidth-200;
+  if(top+280>window.innerHeight)top=rect.top-290;
+  popup.style.top=top+'px';popup.style.left=left+'px';
+  document.getElementById('clockH').focus();
+}
+function closeClock(){document.getElementById('clockPopup').style.display='none';document.getElementById('clockOverlay').style.display='none';clockTarget=null;}
+function refreshClockDisplay(){
+  const t=`${String(clockH).padStart(2,'0')}:${String(clockM).padStart(2,'0')}`;
+  document.getElementById('clockH').value=String(clockH).padStart(2,'0');
+  document.getElementById('clockM').value=String(clockM).padStart(2,'0');
+  document.getElementById('clockWarn').textContent=isLate(t)?'⚠ Late arrival':'';
+}
+function adjustClock(part,delta){if(part==='h')clockH=(clockH+delta+24)%24;else clockM=(clockM+delta+60)%60;refreshClockDisplay();}
+function onClockInput(part){const el=document.getElementById(part==='h'?'clockH':'clockM');const v=parseInt(el.value,10);if(!isNaN(v)){if(part==='h')clockH=Math.min(23,Math.max(0,v));else clockM=Math.min(59,Math.max(0,v));}refreshClockDisplay();}
+function onClockKey(e,part){if(e.key==='ArrowUp'){e.preventDefault();adjustClock(part,1);}if(e.key==='ArrowDown'){e.preventDefault();adjustClock(part,-1);}if(e.key==='Enter')confirmClock();if(e.key==='Escape')closeClock();if(e.key==='Tab'&&part==='h'){e.preventDefault();document.getElementById('clockM').focus();}}
+function confirmClock(){
+  if(!clockTarget)return;const{btn,emp,d}=clockTarget;
+  const t=`${String(clockH).padStart(2,'0')}:${String(clockM).padStart(2,'0')}`;
+  setDay(emp,d,'time',t);btn.textContent=t;btn.className='time-btn has-time'+(isLate(t)?' is-late':'');
+  const tr=btn.closest('tr');if(tr)updateRowSummary(tr,emp);closeClock();
+}
+function clearClockTime(){
+  if(!clockTarget)return;const{btn,emp,d}=clockTarget;
+  setDay(emp,d,'time','');btn.textContent='--:--';btn.className='time-btn';
+  const tr=btn.closest('tr');if(tr)updateRowSummary(tr,emp);closeClock();
+}
+
+/* ═══ CONTROLS ══════════════════════════════════════ */
+populateYears();
+document.getElementById('selMonth').value   = state.month;
+document.getElementById('stdCheckin').value = state.stdCheckin;
+
+document.getElementById('selMonth').onchange    = e=>{ state.month=parseInt(e.target.value); render(); };
+document.getElementById('selYear').onchange     = e=>{ state.year=parseInt(e.target.value);  render(); };
+document.getElementById('stdCheckin').onchange  = e=>{ state.stdCheckin=e.target.value; render(); };
+document.getElementById('selSupervisor').onchange = e=>{ state.supervisor=e.target.value; updateStats(); };
+
+/* ═══ ACTIONS ═══════════════════════════════════════ */
+function addEmployee(){
+  const modal=document.getElementById('empModal'),inner=document.getElementById('empModalInner');
+  document.getElementById('empModalName').value='';
+  inner.classList.remove('closing'); modal.style.display='flex';
+  setTimeout(()=>document.getElementById('empModalName').focus(),50);
+}
+function closeEmpModal(){
+  const modal=document.getElementById('empModal'),inner=document.getElementById('empModalInner');
+  inner.classList.add('closing');
+  setTimeout(()=>{modal.style.display='none';inner.classList.remove('closing');},200);
+}
+function saveEmpModal(){
+  const name=document.getElementById('empModalName').value.trim();
+  if(!name){document.getElementById('empModalName').focus();return;}
+  const emp={id:makeId(),name,order:state.employees.length,days:{}};
+  state.employees.push(emp);
+  if(window._db) window._db.saveEmployee(emp);
+  closeEmpModal(); render();
+}
+
+function exportCSV(){
+  const{month,year}=state; const days=daysInMonth(month,year); const rows=[];
+  const hdr=['S.No','Employee'];
+  for(let d=1;d<=days;d++) hdr.push(`${d}-${DAY_NAMES[dow(month,year,d)]}`);
+  hdr.push('Total Present','Total Absent','Total Leave','Total Off','Late Days','Att%');
+  rows.push(hdr.join(','));
+  state.employees.forEach((emp,ei)=>{
+    const row=[ei+1,`"${emp.name}"`];
+    for(let d=1;d<=days;d++){
+      if(isHoliday(d)){row.push('H');continue;}
+      const{status,time}=getDay(emp,d);
+      row.push(`"${status||'—'}${time?' '+time:''}"`);
+    }
+    const s=empStats(emp);
+    row.push(s.P,s.A,s.L,s.OF,s.late,s.pct+'%');
+    rows.push(row.join(','));
+  });
+  const blob=new Blob([rows.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`CSR_Attendance_${MONTH_NAMES[month]}_${year}.csv`;
+  a.click();
+}
+
+/* ═══ LEGEND GLOW ═══════════════════════════════════ */
+function initLegendGlow(){
+  const dots=[...document.querySelectorAll('.leg-dot')];
+  const glowDuration=1100,pauseBetween=-800,loopDelay=800,step=glowDuration+pauseBetween;
+  dots.forEach(dot=>{dot.style.setProperty('--gc',dot.style.background||'#888');});
+  function runSequence(){
+    dots.forEach((dot,i)=>{setTimeout(()=>{dot.classList.remove('glowing');void dot.offsetWidth;dot.classList.add('glowing');setTimeout(()=>dot.classList.remove('glowing'),glowDuration);},i*step);});
+    setTimeout(runSequence,dots.length*step+loopDelay);
+  }
+  runSequence();
+}
+
+/* ═══ STAT CARD HOVER ANIMATION ═════════════════════ */
+function animateSvalue(el){
+  const text=el.dataset.original||el.textContent.trim();
+  el.dataset.original=text;
+  el.innerHTML=[...text].map((ch,i)=>`<span class="flip-char" style="animation-delay:${i*42}ms">${ch===' '?'&nbsp;':ch}</span>`).join('');
+}
+function bindStatCardHover(){
+  document.querySelectorAll('.stat-card').forEach(card=>{
+    const sval=card.querySelector('.svalue');if(!sval)return;
+    if(!sval.dataset.original)sval.dataset.original=sval.textContent.trim();
+    card.addEventListener('mouseenter',()=>animateSvalue(sval));
+    card.addEventListener('mouseleave',()=>{setTimeout(()=>{if(sval.dataset.original)sval.textContent=sval.dataset.original;},200);});
+  });
+}
+
+/* ═══ INIT ══════════════════════════════════════════ */
+window.render            = render;
+window.initLegendGlow    = initLegendGlow;
+window.bindStatCardHover = bindStatCardHover;
+
+/* Initial render with default data — Firebase will overwrite once loaded */
+render();
+setTimeout(initLegendGlow, 400);
+setTimeout(bindStatCardHover, 50);
+</script>
+<!-- ═══ FIREBASE MODULE — REAL-TIME LISTENERS ════════════════════════════
+     Uses onSnapshot so every screen auto-updates instantly when any user
+     makes a change — no page reload needed.
+════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc, deleteDoc,
+         collection, onSnapshot, writeBatch }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+/* ── FIREBASE CONFIG ─────────────────────────────────────────────── */
+const firebaseConfig = {
+  apiKey:            "AIzaSyCLdpwRc_viioNZIe0htzOp7P_zF9FhtJw",
+  authDomain:        "xperts5-attendance-csr.firebaseapp.com",
+  projectId:         "xperts5-attendance-csr",
+  storageBucket:     "xperts5-attendance-csr.firebasestorage.app",
+  messagingSenderId: "535701308439",
+  appId:             "1:535701308439:web:f9b2fd107b4dc70b0c8852"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+/* ── SYNC PILL ───────────────────────────────────────────────────── */
+function showSync(status, msg) {
+  const pill  = document.getElementById('syncPill');
+  const label = pill.querySelector('.pill-label');
+  pill.className   = status;
+  label.textContent = msg;
+}
+
+/* ── WRITE OPERATIONS ────────────────────────────────────────────── */
+async function saveAttCell(empId, y, m, d, status, time) {
+  showSync('syncing', 'Saving…');
+  try {
+    const ref = doc(db, 'attendance', `${empId}_${y}_${m}_${d}`);
+    if (!status && !time) await deleteDoc(ref);
+    else await setDoc(ref, { empId, year:y, month:m, day:d, status:status||'', time:time||'' });
+    /* pill returns to Live automatically via onSnapshot */
+  } catch(e) { showSync('error', 'Error — could not save'); console.error(e); }
+}
+
+async function saveHoliday(y, m, d, isHol) {
+  showSync('syncing', 'Saving…');
+  try {
+    const ref = doc(db, 'holidays', `${y}_${m}_${d}`);
+    if (isHol) await setDoc(ref, { year:y, month:m, day:d });
+    else        await deleteDoc(ref);
+  } catch(e) { showSync('error', 'Error — could not save'); console.error(e); }
+}
+
+async function saveEmployee(emp) {
+  showSync('syncing', 'Saving…');
+  try {
+    await setDoc(doc(db, 'employees', emp.id), { name:emp.name, order:emp.order||0 });
+  } catch(e) { showSync('error', 'Error — could not save'); console.error(e); }
+}
+
+async function deleteEmployee(empId) {
+  showSync('syncing', 'Deleting…');
+  try {
+    await deleteDoc(doc(db, 'employees', empId));
+  } catch(e) { showSync('error', 'Error — could not delete'); console.error(e); }
+}
+
+/* ── REAL-TIME LISTENERS ─────────────────────────────────────────────────
+   Three onSnapshot listeners run permanently in parallel.
+   Any change by any user on any device fires instantly on all open screens.
+──────────────────────────────────────────────────────────────────────── */
+function startListeners() {
+  showSync('syncing', 'Connecting…');
+
+  const ready = { employees:false, attendance:false, holidays:false };
+  let firstRenderDone = false;
+
+  function checkAndRender() {
+    if (!firstRenderDone && ready.employees && ready.attendance && ready.holidays) {
+      firstRenderDone = true;
+      showSync('live', 'Live — all data synced');
+      window.render();
+      setTimeout(() => window.initLegendGlow(),    400);
+      setTimeout(() => window.bindStatCardHover(),  50);
+    } else if (firstRenderDone) {
+      showSync('live', 'Live — all data synced');
+      window.render();
+    }
+  }
+
+  /* 1. EMPLOYEES */
+  onSnapshot(collection(db, 'employees'),
+    async (snap) => {
+      if (snap.empty && !ready.employees) {
+        /* First ever run — seed defaults into Firestore */
+        const batch = writeBatch(db);
+        window._state.employees.forEach((emp, i) => {
+          emp.order = i;
+          batch.set(doc(db, 'employees', emp.id), { name:emp.name, order:i });
+        });
+        await batch.commit();
+        return;
+      }
+      /* Preserve existing attendance days already loaded */
+      const existing = {};
+      window._state.employees.forEach(e => { existing[e.id] = e.days; });
+
+      window._state.employees = [];
+      snap.forEach(d => {
+        window._state.employees.push({
+          id:    d.id,
+          name:  d.data().name,
+          order: d.data().order || 0,
+          days:  existing[d.id] || {}
+        });
+      });
+      window._state.employees.sort((a,b) => a.order - b.order);
+
+      ready.employees = true;
+      checkAndRender();
+    },
+    (err) => { showSync('error', 'Error — check Firestore rules'); console.error(err); }
+  );
+
+  /* 2. ATTENDANCE */
+  onSnapshot(collection(db, 'attendance'),
+    (snap) => {
+      window._state.employees.forEach(e => { e.days = {}; });
+      snap.forEach(d => {
+        const { empId, year, month, day, status, time } = d.data();
+        const emp = window._state.employees.find(e => e.id === empId);
+        if (emp) emp.days[`${year}-${month}-${day}`] = { status:status||'', time:time||'' };
+      });
+      ready.attendance = true;
+      checkAndRender();
+    },
+    (err) => { showSync('error', 'Error — check Firestore rules'); console.error(err); }
+  );
+
+  /* 3. HOLIDAYS */
+  onSnapshot(collection(db, 'holidays'),
+    (snap) => {
+      window._state.holidays = {};
+      snap.forEach(d => {
+        const { year, month, day } = d.data();
+        window._state.holidays[`${year}-${month}-${day}`] = true;
+      });
+      ready.holidays = true;
+      checkAndRender();
+    },
+    (err) => { showSync('error', 'Error — check Firestore rules'); console.error(err); }
+  );
+}
+
+/* ── EXPOSE TO MAIN SCRIPT ───────────────────────────────────────── */
+window._db = { saveAttCell, saveHoliday, saveEmployee, deleteEmployee };
+
+/* ── WAIT FOR MAIN SCRIPT THEN START ────────────────────────────── */
+function waitAndStart() {
+  if (window._state && window.render) startListeners();
+  else setTimeout(waitAndStart, 30);
+}
+waitAndStart();
+</script>
+</body>
+</html>

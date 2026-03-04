@@ -48,25 +48,64 @@
       font-size:9px;text-transform:uppercase;letter-spacing:1.5px;
       color:rgba(255,255,255,.65);font-family:'DM Mono',monospace;
     }
-    .supervisor-wrap select{
-      background:rgba(255,255,255,.15);
-      border:1.5px solid rgba(255,255,255,.35);
-      color:#fff;
-      padding:7px 28px 7px 12px;
-      border-radius:8px;
-      font-family:'DM Mono',monospace;
-      font-size:13px;
-      font-weight:600;
-      outline:none;
-      cursor:pointer;
-      -webkit-appearance:none;appearance:none;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,.7)'/%3E%3C/svg%3E");
-      background-repeat:no-repeat;background-position:right 10px center;
-      text-align:center;
-      min-width:180px;
+    .supervisor-name-btn {
+      background: rgba(255,255,255,.15);
+      border: 1.5px solid rgba(255,255,255,.35);
+      border-radius: 8px;
+      color: #fff;
+      padding: 7px 18px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      min-width: 180px;
+      text-align: center;
+      transition: background .2s, border-color .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
     }
-    .supervisor-wrap select:hover{border-color:rgba(255,255,255,.7);background-color:rgba(255,255,255,.22);}
-    .supervisor-wrap select option{background:#0f6b4f;color:#fff;}
+    .supervisor-name-btn:hover { background: rgba(255,255,255,.25); border-color: rgba(255,255,255,.7); }
+    .supervisor-name-btn .edit-icon { font-size: 11px; opacity: .7; }
+    .supervisor-name-btn.is-empty { border-style: dashed; }
+    .supervisor-name-btn.is-empty #supNameDisplay { color: rgba(255,255,255,.4); font-weight:400; font-style:italic; }
+
+    /* Supervisor popup */
+    #supOverlay { display:none; position:fixed; inset:0; z-index:9998; background:rgba(10,50,30,.35); backdrop-filter:blur(2px); }
+    #supPopup {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      background: #fff;
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 22px 18px;
+      box-shadow: 0 12px 40px rgba(15,107,79,.18);
+      width: 300px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    #supPopup h3 { font-family:'Libre Baskerville',serif; font-size:15px; font-weight:700; color:var(--text); margin-bottom:14px; }
+    #supPopup input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+      margin-bottom: 14px;
+    }
+    #supPopup input:focus { border-color: #0f6b4f; }
+    #supPopup .sup-actions { display:flex; gap:8px; }
+    #supPopup .sup-actions button { flex:1; padding:9px; border-radius:8px; border:none; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:opacity .15s; }
+    #supPopup .sup-actions button:hover { opacity:.85; }
+    #supPopup .sup-save   { background:#0f6b4f; color:#fff; }
+    #supPopup .sup-cancel { background:var(--surface2); color:var(--text2); border:1.5px solid var(--border) !important; }
 
     /* Right: controls */
     .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;justify-content:flex-end;}
@@ -148,6 +187,7 @@
     .status-sel.s-H  {color:var(--holiday); border-color:#ddd6fe;background:#faf5ff;}
     .status-sel.s-OF {color:var(--off);     border-color:#cbd5e1;background:#f8fafc;}
     .status-sel.s-LI {color:#0891b2;        border-color:#a5f3fc;background:#ecfeff;}
+    .status-sel.s-HD {color:#8b5cf6;        border-color:#ddd6fe;background:#f5f3ff;}
     .status-sel.s-   {color:var(--muted2);  border-color:var(--border);}
 
     /* Time button */
@@ -225,9 +265,22 @@
   <!-- CENTER: Supervised by -->
   <div class="supervisor-wrap">
     <label>Supervised by</label>
-    <select id="selSupervisor">
-      <option value="Muhammad Bilal">Muhammad Bilal</option>
-    </select>
+    <button class="supervisor-name-btn" onclick="openSupPopup()">
+      <span id="supNameDisplay">—</span>
+      <span class="edit-icon">✏️</span>
+    </button>
+  </div>
+
+  <!-- Supervisor Popup -->
+  <div id="supOverlay" onclick="closeSupPopup()"></div>
+  <div id="supPopup">
+    <h3>Supervised by</h3>
+    <input id="supNameInput" type="text" placeholder="Enter your name" maxlength="50"
+      onkeydown="if(event.key==='Enter') saveSupName(); if(event.key==='Escape') closeSupPopup();"/>
+    <div class="sup-actions">
+      <button class="sup-cancel" onclick="closeSupPopup()">Cancel</button>
+      <button class="sup-save"   onclick="saveSupName()">Save</button>
+    </div>
   </div>
 
   <!-- RIGHT: Controls -->
@@ -264,7 +317,8 @@
     <div class="leg-item"><div class="leg-dot" style="background:#16a34a"></div>P = Present</div>
     <div class="leg-item"><div class="leg-dot" style="background:#dc2626"></div>A = Absent</div>
     <div class="leg-item"><div class="leg-dot" style="background:#d97706"></div>L = Leave</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#0891b2"></div>LI = Informed Late (counts as Present, not Late)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#0891b2"></div>LI = Informed Late (counts as Present)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#8b5cf6"></div>HD = Half Day (counts as Present)</div>
     <div class="leg-item"><div class="leg-dot" style="background:#475569"></div>OF = Off (no effect on attendance)</div>
     <div class="leg-item"><div class="leg-dot" style="background:#7c3aed"></div>H = Holiday (col)</div>
     <div class="leg-item"><div class="leg-dot" style="background:#ea580c"></div>Orange = Late</div>
@@ -353,7 +407,7 @@ const MONTH_NAMES = ['January','February','March','April','May','June',
                      'July','August','September','October','November','December'];
 
 /* CSR: Sunday is a normal working day. OFF is a manual status, not auto. */
-const STATUS_OPTS = ['', 'P', 'A', 'L', 'LI', 'OF', 'H'];
+const STATUS_OPTS = ['', 'P', 'A', 'L', 'LI', 'HD', 'OF', 'H'];
 
 /* 100% attendance = 26 Present days (fixed target, not calendar-based) */
 const FULL_ATTENDANCE_DAYS = 26;
@@ -366,11 +420,15 @@ window._state = {
   month:      new Date().getMonth(),
   year:       new Date().getFullYear(),
   stdCheckin: '08:05',
-  supervisor: 'Muhammad Ahsan',
+  supervisors: {},  /* key: "YYYY-M" → name, stored per month */
   holidays:   {},
-  employees:  []   /* empty — all employees loaded from Firestore */
+  employees:  []
 };
 const state = window._state;
+
+/* Helper — get supervisor for current month */
+function supKey()         { return `${state.year}-${state.month}`; }
+function getSupervisor()  { return state.supervisors[supKey()] || ''; }
 
 /* ═══ Helpers ═══════════════════════════════════════ */
 function daysInMonth(m,y)  { return new Date(y,m+1,0).getDate(); }
@@ -396,18 +454,19 @@ function setDay(emp,d,field,val){
    - Pct can exceed 100% if someone comes more than 26 days          */
 function empStats(emp) {
   const total = daysInMonth(state.month, state.year);
-  let P=0, A=0, L=0, LI=0, OF=0, late=0;
+  let P=0, A=0, L=0, LI=0, HD=0, OF=0, late=0;
   for(let d=1; d<=total; d++) {
     if(isHoliday(d)) continue;
     const {status, time} = getDay(emp, d);
-    if(status==='P')  { P++;  if(isLate(time)) late++; }
-    else if(status==='LI') { P++; LI++; /* counts as present, never late */ }
-    else if(status==='A')  A++;
-    else if(status==='L')  L++;
-    else if(status==='OF') OF++;
+    if(status==='P')        { P++; if(isLate(time)) late++; }
+    else if(status==='LI')  { P++; LI++; /* present, not late */ }
+    else if(status==='HD')  { P++; HD++; /* present, not late */ }
+    else if(status==='A')   A++;
+    else if(status==='L')   L++;
+    else if(status==='OF')  OF++;
   }
   const pct = Math.round((P / FULL_ATTENDANCE_DAYS) * 100);
-  return { P, A, L, LI, OF, late, pct };
+  return { P, A, L, LI, HD, OF, late, pct };
 }
 
 /* ═══ Year dropdown ═════════════════════════════════ */
@@ -515,7 +574,7 @@ function render(){
 
         /* Status select */
         const sel=document.createElement('select');
-        const sCls = status==='OF' ? 's-OF' : status==='LI' ? 's-LI' : 's-'+status;
+        const sCls = status==='OF' ? 's-OF' : status==='LI' ? 's-LI' : status==='HD' ? 's-HD' : 's-'+status;
         sel.className='status-sel '+sCls;
         const optMeta={
           '':  {color:'',        bg:'#fff',    label:'—'},
@@ -523,6 +582,7 @@ function render(){
           'A': {color:'#b91c1c', bg:'#fff1f1', label:'A'},
           'L': {color:'#b45309', bg:'#fffbeb', label:'L'},
           'LI':{color:'#0891b2', bg:'#ecfeff', label:'LI'},
+          'HD':{color:'#8b5cf6', bg:'#f5f3ff', label:'HD'},
           'OF':{color:'#475569', bg:'#f8fafc', label:'OF'},
           'H': {color:'#6d28d9', bg:'#faf5ff', label:'H'},
         };
@@ -538,7 +598,7 @@ function render(){
         sel.onchange=e=>{
           const v=e.target.value;
           setDay(emp,d,'status',v);
-          sel.className='status-sel s-'+(v==='OF'?'OF':v==='LI'?'LI':v);
+          sel.className='status-sel s-'+(v==='OF'?'OF':v==='LI'?'LI':v==='HD'?'HD':v);
           updateRowSummary(tr,emp);
         };
         cell.appendChild(sel);
@@ -645,7 +705,7 @@ function updateStats(){
     <div class="stat-card"><div class="slabel">Target Days</div><div class="svalue" style="color:var(--present)">${FULL_ATTENDANCE_DAYS}</div></div>
     <div class="stat-card"><div class="slabel">Holidays</div><div class="svalue" style="color:var(--holiday)">${holidays}</div></div>
     <div class="stat-card"><div class="slabel">Employees</div><div class="svalue">${state.employees.length}</div></div>
-    <div class="stat-card"><div class="slabel">Supervised by</div><div class="svalue" style="font-size:13px">${state.supervisor}</div></div>
+    <div class="stat-card"><div class="slabel">Supervised by</div><div class="svalue" style="font-size:13px;color:${getSupervisor()?'var(--text)':'var(--muted2)'}">${getSupervisor()||'—'}</div></div>
   `;
   setTimeout(bindStatCardHover, 10);
 }
@@ -692,11 +752,48 @@ function clearClockTime(){
 populateYears();
 document.getElementById('selMonth').value   = state.month;
 document.getElementById('stdCheckin').value = state.stdCheckin;
+refreshSupDisplay();
 
-document.getElementById('selMonth').onchange    = e=>{ state.month=parseInt(e.target.value); render(); };
-document.getElementById('selYear').onchange     = e=>{ state.year=parseInt(e.target.value);  render(); };
+document.getElementById('selMonth').onchange    = e=>{ state.month=parseInt(e.target.value); refreshSupDisplay(); render(); };
+document.getElementById('selYear').onchange     = e=>{ state.year=parseInt(e.target.value);  refreshSupDisplay(); render(); };
 document.getElementById('stdCheckin').onchange  = e=>{ state.stdCheckin=e.target.value; render(); };
-document.getElementById('selSupervisor').onchange = e=>{ state.supervisor=e.target.value; updateStats(); };
+
+/* ── Supervisor — per month ── */
+function refreshSupDisplay(){
+  const name = getSupervisor();
+  const btn  = document.querySelector('.supervisor-name-btn');
+  const disp = document.getElementById('supNameDisplay');
+  if(name){
+    disp.textContent = name;
+    btn.classList.remove('is-empty');
+  } else {
+    disp.textContent = 'Write your name';
+    btn.classList.add('is-empty');
+  }
+}
+
+function openSupPopup(){
+  const name = getSupervisor();
+  document.getElementById('supNameInput').value = name;
+  document.getElementById('supOverlay').style.display = 'block';
+  document.getElementById('supPopup').style.display   = 'block';
+  setTimeout(()=>document.getElementById('supNameInput').focus(), 50);
+}
+function closeSupPopup(){
+  document.getElementById('supOverlay').style.display = 'none';
+  document.getElementById('supPopup').style.display   = 'none';
+}
+function saveSupName(){
+  const name = document.getElementById('supNameInput').value.trim();
+  if(!name) return;
+  state.supervisors[supKey()] = name;
+  /* Save to Firestore if connected */
+  if(window._db && window._db.saveSupervisor)
+    window._db.saveSupervisor(state.year, state.month, name);
+  refreshSupDisplay();
+  closeSupPopup();
+  updateStats();
+}
 
 /* ═══ ACTIONS ═══════════════════════════════════════ */
 function addEmployee(){
@@ -774,6 +871,7 @@ function bindStatCardHover(){
 window.render            = render;
 window.initLegendGlow    = initLegendGlow;
 window.bindStatCardHover = bindStatCardHover;
+window.refreshSupDisplay = refreshSupDisplay;
 
 /* Initial render with default data — Firebase will overwrite once loaded */
 render();
@@ -839,6 +937,13 @@ async function saveEmployee(emp) {
   } catch(e) { showSync('error', 'Error — could not save'); console.error(e); }
 }
 
+async function saveSupervisor(y, m, name) {
+  showSync('syncing', 'Saving…');
+  try {
+    await setDoc(doc(db, 'supervisors', `${y}_${m}`), { year:y, month:m, name });
+  } catch(e) { showSync('error', 'Error — could not save'); console.error(e); }
+}
+
 async function deleteEmployee(empId) {
   showSync('syncing', 'Deleting…');
   try {
@@ -853,19 +958,21 @@ async function deleteEmployee(empId) {
 function startListeners() {
   showSync('syncing', 'Connecting…');
 
-  const ready = { employees:false, attendance:false, holidays:false };
+  const ready = { employees:false, attendance:false, holidays:false, supervisors:false };
   let firstRenderDone = false;
 
   function checkAndRender() {
-    if (!firstRenderDone && ready.employees && ready.attendance && ready.holidays) {
+    if (!firstRenderDone && ready.employees && ready.attendance && ready.holidays && ready.supervisors) {
       firstRenderDone = true;
       showSync('live', 'Live — all data synced');
       window.render();
+      window.refreshSupDisplay();
       setTimeout(() => window.initLegendGlow(),    400);
       setTimeout(() => window.bindStatCardHover(),  50);
     } else if (firstRenderDone) {
       showSync('live', 'Live — all data synced');
       window.render();
+      window.refreshSupDisplay();
     }
   }
 
@@ -921,10 +1028,24 @@ function startListeners() {
     },
     (err) => { showSync('error', 'Error — check Firestore rules'); console.error(err); }
   );
+
+  /* 4. SUPERVISORS — per month */
+  onSnapshot(collection(db, 'supervisors'),
+    (snap) => {
+      window._state.supervisors = {};
+      snap.forEach(d => {
+        const { year, month, name } = d.data();
+        window._state.supervisors[`${year}-${month}`] = name;
+      });
+      ready.supervisors = true;
+      checkAndRender();
+    },
+    (err) => { showSync('error', 'Error — check Firestore rules'); console.error(err); }
+  );
 }
 
 /* ── EXPOSE TO MAIN SCRIPT ───────────────────────────────────────── */
-window._db = { saveAttCell, saveHoliday, saveEmployee, deleteEmployee };
+window._db = { saveAttCell, saveHoliday, saveEmployee, deleteEmployee, saveSupervisor };
 
 /* ── WAIT FOR MAIN SCRIPT THEN START ────────────────────────────── */
 function waitAndStart() {

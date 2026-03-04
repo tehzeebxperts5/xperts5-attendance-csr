@@ -367,11 +367,7 @@ window._state = {
   stdCheckin: '08:05',
   supervisor: 'Muhammad Ahsan',
   holidays:   {},
-  employees:  [
-    { id:'csr_emp1', name:'Muhammad Bilal', order:0, days:{} },
-    { id:'csr_emp2', name:'Muhammad Amir', order:1, days:{} },
-    { id:'csr_emp3', name:'Kinza', order:2, days:{} },
-  ]
+  employees:  []   /* empty — all employees loaded from Firestore */
 };
 const state = window._state;
 
@@ -790,7 +786,7 @@ setTimeout(bindStatCardHover, 50);
 import { initializeApp }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, setDoc, deleteDoc,
-         collection, onSnapshot, writeBatch }
+         collection, onSnapshot }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* ── FIREBASE CONFIG ─────────────────────────────────────────────── */
@@ -874,16 +870,6 @@ function startListeners() {
   /* 1. EMPLOYEES */
   onSnapshot(collection(db, 'employees'),
     async (snap) => {
-      if (snap.empty && !ready.employees) {
-        /* First ever run — seed defaults into Firestore */
-        const batch = writeBatch(db);
-        window._state.employees.forEach((emp, i) => {
-          emp.order = i;
-          batch.set(doc(db, 'employees', emp.id), { name:emp.name, order:i });
-        });
-        await batch.commit();
-        return;
-      }
       /* Preserve existing attendance days already loaded */
       const existing = {};
       window._state.employees.forEach(e => { existing[e.id] = e.days; });

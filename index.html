@@ -147,6 +147,7 @@
     .status-sel.s-L  {color:var(--leave);   border-color:#fde68a;background:#fffbeb;}
     .status-sel.s-H  {color:var(--holiday); border-color:#ddd6fe;background:#faf5ff;}
     .status-sel.s-OF {color:var(--off);     border-color:#cbd5e1;background:#f8fafc;}
+    .status-sel.s-LI {color:#0891b2;        border-color:#a5f3fc;background:#ecfeff;}
     .status-sel.s-   {color:var(--muted2);  border-color:var(--border);}
 
     /* Time button */
@@ -264,8 +265,9 @@
     <div class="leg-item"><div class="leg-dot" style="background:#16a34a"></div>P = Present</div>
     <div class="leg-item"><div class="leg-dot" style="background:#dc2626"></div>A = Absent</div>
     <div class="leg-item"><div class="leg-dot" style="background:#d97706"></div>L = Leave</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#475569"></div>OFF = Off</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#7c3aed"></div>H = Holiday</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#0891b2"></div>LI = Informed Late (counts as Present, not Late)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#475569"></div>OF = Off (no effect on attendance)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#7c3aed"></div>H = Holiday (col)</div>
     <div class="leg-item"><div class="leg-dot" style="background:#ea580c"></div>Orange = Late</div>
   </div>
   <div class="toolbar">
@@ -352,7 +354,7 @@ const MONTH_NAMES = ['January','February','March','April','May','June',
                      'July','August','September','October','November','December'];
 
 /* CSR: Sunday is a normal working day. OFF is a manual status, not auto. */
-const STATUS_OPTS = ['', 'P', 'A', 'L', 'OF', 'H'];
+const STATUS_OPTS = ['', 'P', 'A', 'L', 'LI', 'OF', 'H'];
 
 /* 100% attendance = 26 Present days (fixed target, not calendar-based) */
 const FULL_ATTENDANCE_DAYS = 26;
@@ -395,18 +397,18 @@ function setDay(emp,d,field,val){
    - Pct can exceed 100% if someone comes more than 26 days          */
 function empStats(emp) {
   const total = daysInMonth(state.month, state.year);
-  let P=0, A=0, L=0, OF=0, late=0;
+  let P=0, A=0, L=0, LI=0, OF=0, late=0;
   for(let d=1; d<=total; d++) {
     if(isHoliday(d)) continue;
     const {status, time} = getDay(emp, d);
     if(status==='P')  { P++;  if(isLate(time)) late++; }
+    else if(status==='LI') { P++; LI++; /* counts as present, never late */ }
     else if(status==='A')  A++;
     else if(status==='L')  L++;
     else if(status==='OF') OF++;
   }
-  /* Attendance % based on fixed 26-day target */
   const pct = Math.round((P / FULL_ATTENDANCE_DAYS) * 100);
-  return { P, A, L, OF, late, pct };
+  return { P, A, L, LI, OF, late, pct };
 }
 
 /* ═══ Year dropdown ═════════════════════════════════ */
@@ -514,15 +516,16 @@ function render(){
 
         /* Status select */
         const sel=document.createElement('select');
-        const sCls = status==='OF' ? 's-OF' : 's-'+status;
+        const sCls = status==='OF' ? 's-OF' : status==='LI' ? 's-LI' : 's-'+status;
         sel.className='status-sel '+sCls;
         const optMeta={
-          '':  {color:'',      bg:'#fff',    label:'—'},
-          'P': {color:'#15803d',bg:'#f0fdf4',label:'P'},
-          'A': {color:'#b91c1c',bg:'#fff1f1',label:'A'},
-          'L': {color:'#b45309',bg:'#fffbeb',label:'L'},
-          'OF':{color:'#475569',bg:'#f8fafc',label:'OF'},
-          'H': {color:'#6d28d9',bg:'#faf5ff',label:'H'},
+          '':  {color:'',        bg:'#fff',    label:'—'},
+          'P': {color:'#15803d', bg:'#f0fdf4', label:'P'},
+          'A': {color:'#b91c1c', bg:'#fff1f1', label:'A'},
+          'L': {color:'#b45309', bg:'#fffbeb', label:'L'},
+          'LI':{color:'#0891b2', bg:'#ecfeff', label:'LI'},
+          'OF':{color:'#475569', bg:'#f8fafc', label:'OF'},
+          'H': {color:'#6d28d9', bg:'#faf5ff', label:'H'},
         };
         STATUS_OPTS.forEach(o=>{
           const opt=document.createElement('option');
@@ -536,7 +539,7 @@ function render(){
         sel.onchange=e=>{
           const v=e.target.value;
           setDay(emp,d,'status',v);
-          sel.className='status-sel '+(v==='OF'?'s-OF':'s-'+v);
+          sel.className='status-sel s-'+(v==='OF'?'OF':v==='LI'?'LI':v);
           updateRowSummary(tr,emp);
         };
         cell.appendChild(sel);

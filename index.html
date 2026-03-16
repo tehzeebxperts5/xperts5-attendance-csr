@@ -717,7 +717,7 @@ function openClock(btn,emp,d){
   const {time}=getDay(emp,d);
   if(time){const[h,m]=time.split(':');clockH=parseInt(h);clockM=parseInt(m);}
   else{clockH=8;clockM=5;}
-  clockTarget={btn,emp,d}; refreshClockDisplay();
+  clockTarget={btn,emp,d}; clockTyping={h:'',m:''}; refreshClockDisplay();
   const popup=document.getElementById('clockPopup'),overlay=document.getElementById('clockOverlay');
   popup.style.display='block';overlay.style.display='block';
   const rect=btn.getBoundingClientRect();
@@ -735,8 +735,64 @@ function refreshClockDisplay(){
   document.getElementById('clockWarn').textContent=isLate(t)?'⚠ Late arrival':'';
 }
 function adjustClock(part,delta){if(part==='h')clockH=(clockH+delta+24)%24;else clockM=(clockM+(delta*5)+60)%60;refreshClockDisplay();}
-function onClockInput(part){const el=document.getElementById(part==='h'?'clockH':'clockM');const v=parseInt(el.value,10);if(!isNaN(v)){if(part==='h')clockH=Math.min(23,Math.max(0,v));else clockM=Math.min(59,Math.max(0,v));}refreshClockDisplay();}
-function onClockKey(e,part){if(e.key==='ArrowUp'){e.preventDefault();adjustClock(part,1);}if(e.key==='ArrowDown'){e.preventDefault();adjustClock(part,-1);}if(e.key==='Enter')confirmClock();if(e.key==='Escape')closeClock();if(e.key==='Tab'&&part==='h'){e.preventDefault();document.getElementById('clockM').focus();}}
+/* Tracks digits typed so far for each part */
+let clockTyping = { h: '', m: '' };
+
+function onClockInput(part){
+  /* Handled entirely by onClockKey — ignore native input event */
+}
+
+function onClockKey(e, part){
+  if(e.key === 'ArrowUp')   { e.preventDefault(); adjustClock(part, 1);  return; }
+  if(e.key === 'ArrowDown') { e.preventDefault(); adjustClock(part, -1); return; }
+  if(e.key === 'Enter')     { confirmClock(); return; }
+  if(e.key === 'Escape')    { closeClock();   return; }
+  if(e.key === 'Tab' && part === 'h') { e.preventDefault(); clockTyping.h=''; document.getElementById('clockM').focus(); return; }
+
+  /* Digit typing */
+  if(/^\d$/.test(e.key)) {
+    e.preventDefault();
+    clockTyping[part] += e.key;
+
+    if(part === 'h') {
+      const val = parseInt(clockTyping.h, 10);
+      if(clockTyping.h.length === 1) {
+        /* If first digit > 2, it can't be a valid 2-digit hour start — commit immediately */
+        if(val > 2) { clockH = val; clockTyping.h = ''; document.getElementById('clockM').focus(); }
+        else        { clockH = val; }
+      } else {
+        /* Two digits typed */
+        clockH = Math.min(23, val);
+        clockTyping.h = '';
+        document.getElementById('clockM').focus();
+      }
+    } else {
+      const val = parseInt(clockTyping.m, 10);
+      if(clockTyping.m.length === 1) {
+        /* If first digit > 5, minutes can't start with that — commit immediately */
+        if(val > 5) { clockM = val; clockTyping.m = ''; }
+        else        { clockM = val; }
+      } else {
+        /* Two digits typed */
+        clockM = Math.min(59, val);
+        clockTyping.m = '';
+      }
+    }
+    refreshClockDisplay();
+    return;
+  }
+
+  /* Backspace — clear typed buffer */
+  if(e.key === 'Backspace') {
+    e.preventDefault();
+    if(clockTyping[part].length > 0) {
+      clockTyping[part] = clockTyping[part].slice(0, -1);
+    } else {
+      if(part === 'h') clockH = 0; else clockM = 0;
+    }
+    refreshClockDisplay();
+  }
+}
 function confirmClock(){
   if(!clockTarget)return;const{btn,emp,d}=clockTarget;
   const t=`${String(clockH).padStart(2,'0')}:${String(clockM).padStart(2,'0')}`;

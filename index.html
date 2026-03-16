@@ -605,7 +605,8 @@ function render(){
 
         /* Time button */
         const tb=document.createElement('button');
-        tb.className='time-btn'+(time?' has-time':'')+(isLate(time)?' is-late':'');
+        const showLate = isLate(time) && status !== 'LI' && status !== 'HD';
+        tb.className='time-btn'+(time?' has-time':'')+(showLate?' is-late':'');
         tb.textContent=time||'--:--'; tb.title='Click to set time';
         tb.onclick=()=>openClock(tb,emp,d);
         cell.appendChild(tb);
@@ -733,13 +734,16 @@ function refreshClockDisplay(){
   document.getElementById('clockM').value=String(clockM).padStart(2,'0');
   document.getElementById('clockWarn').textContent=isLate(t)?'⚠ Late arrival':'';
 }
-function adjustClock(part,delta){if(part==='h')clockH=(clockH+delta+24)%24;else clockM=(clockM+delta+60)%60;refreshClockDisplay();}
+function adjustClock(part,delta){if(part==='h')clockH=(clockH+delta+24)%24;else clockM=(clockM+(delta*5)+60)%60;refreshClockDisplay();}
 function onClockInput(part){const el=document.getElementById(part==='h'?'clockH':'clockM');const v=parseInt(el.value,10);if(!isNaN(v)){if(part==='h')clockH=Math.min(23,Math.max(0,v));else clockM=Math.min(59,Math.max(0,v));}refreshClockDisplay();}
 function onClockKey(e,part){if(e.key==='ArrowUp'){e.preventDefault();adjustClock(part,1);}if(e.key==='ArrowDown'){e.preventDefault();adjustClock(part,-1);}if(e.key==='Enter')confirmClock();if(e.key==='Escape')closeClock();if(e.key==='Tab'&&part==='h'){e.preventDefault();document.getElementById('clockM').focus();}}
 function confirmClock(){
   if(!clockTarget)return;const{btn,emp,d}=clockTarget;
   const t=`${String(clockH).padStart(2,'0')}:${String(clockM).padStart(2,'0')}`;
-  setDay(emp,d,'time',t);btn.textContent=t;btn.className='time-btn has-time'+(isLate(t)?' is-late':'');
+  setDay(emp,d,'time',t);
+  const {status}=getDay(emp,d);
+  const showLate = isLate(t) && status !== 'LI' && status !== 'HD';
+  btn.textContent=t;btn.className='time-btn has-time'+(showLate?' is-late':'');
   const tr=btn.closest('tr');if(tr)updateRowSummary(tr,emp);closeClock();
 }
 function clearClockTime(){
